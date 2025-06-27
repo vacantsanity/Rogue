@@ -1,0 +1,2807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rogue Dice Dungeon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #eee;
+            min-height: 100vh;
+            padding: 6px;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            min-height: calc(100vh - 12px);
+            display: flex;
+            flex-direction: column;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .title-bar {
+            text-align: center;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #4a5568;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .title {
+            font-size: 1.2em;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            margin-bottom: 6px;
+        }
+
+        .save-controls {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .combat-area {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #4a5568;
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .stat {
+            background: rgba(74, 85, 104, 0.5);
+            padding: 4px 6px;
+            border-radius: 3px;
+            border: 1px solid #4a5568;
+            font-size: 0.75em;
+        }
+
+        .progress-bar {
+            background: #2d3748;
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .health-fill { background: #e53e3e; }
+        .stamina-fill { background: #3182ce; }
+        .exp-fill { background: #38a169; }
+
+        .enemy-section {
+            background: rgba(139, 69, 19, 0.3);
+            border: 2px solid #8b4513;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            text-align: center;
+            position: relative;
+        }
+
+        .boss-glow {
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: bossGlow 2s ease-in-out infinite;
+        }
+
+        .final-boss-glow {
+            border-color: #ff0000;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
+            animation: finalBossGlow 1.5s ease-in-out infinite;
+        }
+
+        .enemy-sprite {
+            font-size: 2.5em;
+            margin-bottom: 8px;
+        }
+
+        .enemy-name {
+            font-size: 1.1em;
+            color: #ff6b6b;
+            margin-bottom: 4px;
+        }
+
+        .dice-selection {
+            background: rgba(74, 85, 104, 0.3);
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+
+        .dice-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+
+        .die {
+            width: 44px;
+            height: 44px;
+            background: #4a5568;
+            border: 2px solid #6b7280;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            position: relative;
+            font-size: 0.7em;
+            touch-action: manipulation;
+        }
+
+        .die:hover {
+            transform: scale(1.1);
+            border-color: #ffd700;
+        }
+
+        .die.selected {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffed4e;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+        }
+
+        .die.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .common { border-color: #9ca3af; }
+        .rare { border-color: #3b82f6; box-shadow: 0 0 4px rgba(59, 130, 246, 0.3); }
+        .epic { border-color: #8b5cf6; box-shadow: 0 0 6px rgba(139, 92, 246, 0.4); }
+        .legendary { border-color: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
+        .ancient { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
+        .divine { border-color: #ffd700; box-shadow: 0 0 12px rgba(255, 215, 0, 0.7); animation: divineGlow 2s ease-in-out infinite; }
+
+        .combo-glow {
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.8) !important;
+            border-color: #ffd700 !important;
+            animation: comboGlow 1s ease-in-out infinite;
+        }
+
+        .reroll-indicator {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ffd700;
+            color: #000;
+            border-radius: 50%;
+            width: 10px;
+            height: 10px;
+            font-size: 0.4em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            font-size: 0.8em;
+        }
+
+        .btn-attack {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-attack:hover {
+            background: #c53030;
+        }
+
+        .btn-rest {
+            background: #3182ce;
+            color: white;
+        }
+
+        .btn-rest:hover {
+            background: #2c5282;
+        }
+
+        .btn-save {
+            background: #805ad5;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #6b46c1;
+        }
+
+        .btn-load {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-load:hover {
+            background: #dd6b20;
+        }
+
+        .btn-export {
+            background: #38a169;
+            color: white;
+        }
+
+        .btn-export:hover {
+            background: #2f855a;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .combat-log {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            padding: 8px;
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.75em;
+            min-height: 80px;
+            max-height: 120px;
+        }
+
+        .log-entry {
+            margin-bottom: 3px;
+            padding: 1px 0;
+        }
+
+        .log-damage { color: #ff6b6b; }
+        .log-heal { color: #51cf66; }
+        .log-info { color: #74c0fc; }
+        .log-loot { color: #ffd43b; }
+        .log-save { color: #d69e2e; }
+
+        /* Tabbed Interface - Integrated into Combat */
+        .tabs-container {
+            background: rgba(74, 85, 104, 0.3);
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .tab-header {
+            display: flex;
+            background: rgba(74, 85, 104, 0.8);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 10px 6px;
+            background: transparent;
+            color: #ccc;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            font-size: 0.75em;
+            font-weight: bold;
+            border-right: 1px solid #4a5568;
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+
+        .tab-button:last-child {
+            border-right: none;
+        }
+
+        .tab-button.active {
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+        }
+
+        .tab-button:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .tab-content {
+            padding: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .equipment-slot {
+            background: rgba(74, 85, 104, 0.3);
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            padding: 6px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8em;
+        }
+
+        .skill-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px;
+            margin-bottom: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid #4a5568;
+            font-size: 0.8em;
+        }
+
+        .skill-info {
+            flex: 1;
+        }
+
+        .skill-name {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .skill-description {
+            font-size: 0.7em;
+            color: #ccc;
+            opacity: 0.8;
+        }
+
+        .skill-level {
+            color: #51cf66;
+            font-weight: bold;
+            margin-right: 4px;
+        }
+
+        .skill-upgrade-btn {
+            padding: 3px 6px;
+            font-size: 0.65em;
+            border: none;
+            border-radius: 3px;
+            background: #38a169;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .skill-upgrade-btn:hover {
+            background: #2f855a;
+        }
+
+        .skill-upgrade-btn:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .skill-points {
+            text-align: center;
+            background: rgba(255, 215, 0, 0.2);
+            border: 1px solid #ffd700;
+            border-radius: 4px;
+            padding: 6px;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+        }
+
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .shop-item {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8em;
+        }
+
+        .shop-item:hover {
+            border-color: #ffd700;
+            transform: scale(1.02);
+        }
+
+        .shop-item.affordable {
+            border-color: #38a169;
+        }
+
+        .shop-item.expensive {
+            border-color: #e53e3e;
+            opacity: 0.6;
+        }
+
+        .fusion-recipe {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(74, 85, 104, 0.3);
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            padding: 6px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.75em;
+        }
+
+        .fusion-recipe:hover {
+            border-color: #ffd700;
+            transform: scale(1.02);
+        }
+
+        .fusion-recipe.affordable {
+            border-color: #38a169;
+        }
+
+        .fusion-recipe.expensive {
+            border-color: #e53e3e;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .fusion-arrow {
+            color: #ffd700;
+            font-size: 1em;
+            margin: 0 6px;
+        }
+
+        .rarity-common { color: #9ca3af; }
+        .rarity-rare { color: #3b82f6; }
+        .rarity-epic { color: #8b5cf6; }
+        .rarity-legendary { color: #f59e0b; }
+        .rarity-ancient { color: #ef4444; }
+        .rarity-divine { color: #ffd700; }
+
+        .save-status {
+            text-align: center;
+            font-size: 0.7em;
+            color: #51cf66;
+            margin-top: 4px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .save-status.show {
+            opacity: 1;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: rgba(74, 85, 104, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 500px;
+            margin: 20px auto;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .save-slot {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-slot:hover {
+            border-color: #ffd700;
+        }
+
+        .save-slot.empty {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .save-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .save-details {
+            text-align: left;
+        }
+
+        .save-timestamp {
+            font-size: 0.7em;
+            color: #aaa;
+        }
+
+        /* Screen Overlays */
+        .screen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 997;
+            font-size: 1.5em;
+            text-align: center;
+        }
+
+        .rest-screen {
+            background: rgba(26, 26, 46, 0.95);
+            color: #ffd700;
+        }
+
+        .death-screen {
+            background: rgba(139, 0, 0, 0.95);
+            color: #fff;
+            font-size: 1.8em;
+        }
+
+        .victory-screen {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
+            color: #000;
+            font-size: 1.8em;
+        }
+
+        .rest-animation, .death-animation, .victory-animation {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .rest-animation {
+            animation: restPulse 2s ease-in-out infinite;
+        }
+
+        .death-animation {
+            animation: deathPulse 1.5s ease-in-out infinite;
+        }
+
+        .victory-animation {
+            animation: victoryPulse 2s ease-in-out infinite;
+        }
+
+        .damage-popup {
+            position: absolute;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            animation: popupFloat 1.5s ease-out forwards;
+            z-index: 100;
+            color: #ff6b6b;
+        }
+
+        .combo-popup {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 215, 0, 0.9);
+            color: #000;
+            padding: 3px 6px;
+            border-radius: 8px;
+            font-size: 0.6em;
+            font-weight: bold;
+            pointer-events: none;
+            animation: comboFloat 2s ease-out forwards;
+            z-index: 200;
+        }
+
+        /* Animations */
+        @keyframes bossGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.8); }
+        }
+
+        @keyframes finalBossGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 0, 0, 0.6); }
+            50% { box-shadow: 0 0 50px rgba(255, 0, 0, 1); }
+        }
+
+        @keyframes divineGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.9); }
+        }
+
+        @keyframes comboGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); }
+            50% { box-shadow: 0 0 25px rgba(255, 215, 0, 1); }
+        }
+
+        @keyframes comboFloat {
+            0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        @keyframes deathPulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; filter: brightness(1.5); }
+        }
+
+        @keyframes victoryPulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.1); opacity: 1; filter: brightness(1.2); }
+        }
+
+        @keyframes restPulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+
+        @keyframes popupFloat {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-30px); opacity: 0; }
+        }
+
+        .dice-roll-animation {
+            animation: diceRoll 1s ease-in-out;
+        }
+
+        @keyframes diceRoll {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(90deg); }
+            50% { transform: rotate(180deg); }
+            75% { transform: rotate(270deg); }
+        }
+
+        .combat-shake {
+            animation: combatShake 0.6s ease-in-out;
+        }
+
+        @keyframes combatShake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+            20%, 40%, 60%, 80% { transform: translateX(3px); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tab-content {
+                max-height: 200px;
+            }
+            
+            .die {
+                width: 35px;
+                height: 35px;
+                font-size: 0.7em;
+            }
+            
+            .enemy-sprite {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Title and Save Controls -->
+        <div class="title-bar">
+            <h1 class="title">⚔️ ROGUE DICE DUNGEON ⚔️</h1>
+            <div class="save-controls">
+                <button class="btn btn-save" onclick="saveGame()">💾 Save</button>
+                <button class="btn btn-load" onclick="showLoadGame()">📁 Load</button>
+                <button class="btn btn-export" onclick="showExportImport()">📤 Export</button>
+                <button class="btn btn-rest" onclick="newGame()">🆕 New</button>
+            </div>
+            <div class="save-status" id="saveStatus">Game saved successfully!</div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Combat Area -->
+            <div class="combat-area">
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat">
+                        <div>❤️ Health: <span id="health">100</span>/<span id="maxHealth">100</span></div>
+                        <div class="progress-bar">
+                            <div class="progress-fill health-fill" id="healthBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div>⚡ Stamina: <span id="stamina">15</span>/<span id="maxStamina">15</span></div>
+                        <div class="progress-bar">
+                            <div class="progress-fill stamina-fill" id="staminaBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div>✨ XP: <span id="experience">0</span>/<span id="expNeeded">50</span></div>
+                        <div class="progress-bar">
+                            <div class="progress-fill exp-fill" id="expBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div>🏰 Floor: <span id="floor">1</span> | 💰 <span id="gold">50</span></div>
+                    </div>
+                </div>
+
+                <!-- Integrated Tabs -->
+                <div class="tabs-container">
+                    <div class="tab-header">
+                        <button class="tab-button active" onclick="switchTab('inventory')">🎒 Inventory</button>
+                        <button class="tab-button" onclick="switchTab('skills')">⚡ Skills</button>
+                        <button class="tab-button" onclick="switchTab('shop')">🛒 Shop</button>
+                        <button class="tab-button" onclick="switchTab('fusion')">🔮 Fusion</button>
+                    </div>
+                    
+                    <div class="tab-content">
+                        <!-- Inventory Tab -->
+                        <div class="tab-pane active" id="inventoryTab">
+                            <h4 style="color: #ffd700; margin-bottom: 8px;">Equipment</h4>
+                            <div class="equipment-slot">
+                                <span>⚔️ Weapon:</span>
+                                <span id="weaponSlot">Bare Hands (+0)</span>
+                            </div>
+                            <div class="equipment-slot">
+                                <span>🛡️ Armor:</span>
+                                <span id="armorSlot">None (0)</span>
+                            </div>
+                            <div class="equipment-slot">
+                                <span>🧪 Health:</span>
+                                <span>
+                                    <span id="healthPotions">2</span>
+                                    <button class="btn" onclick="useHealthPotion()" style="margin-left: 4px; padding: 2px 4px; font-size: 0.6em;">Use</button>
+                                </span>
+                            </div>
+                            <div class="equipment-slot">
+                                <span>⚡ Stamina:</span>
+                                <span>
+                                    <span id="staminaPotions">1</span>
+                                    <button class="btn" onclick="useStaminaPotion()" style="margin-left: 4px; padding: 2px 4px; font-size: 0.6em;">Use</button>
+                                </span>
+                            </div>
+
+                            <h4 style="color: #ffd700; margin: 12px 0 8px;">🎲 Dice Collection</h4>
+                            <div id="diceInventory"></div>
+                        </div>
+
+                        <!-- Skills Tab -->
+                        <div class="tab-pane" id="skillsTab">
+                            <div class="skill-points">
+                                💎 Skill Points: <span id="skillPoints">2</span>
+                            </div>
+                            <div id="skillsList"></div>
+                        </div>
+
+                        <!-- Shop Tab -->
+                        <div class="tab-pane" id="shopTab">
+                            <h4 style="color: #ffd700; margin-bottom: 8px; text-align: center;">🛒 Shop</h4>
+                            <div class="shop-grid" id="shopGrid"></div>
+                        </div>
+
+                        <!-- Fusion Tab -->
+                        <div class="tab-pane" id="fusionTab">
+                            <h4 style="color: #ffd700; margin-bottom: 8px;">⚗️ Combine Dice</h4>
+                            <div id="fusionRecipes"></div>
+                            
+                            <h4 style="color: #ffd700; margin: 12px 0 8px;">✨ Upgrade Rarity</h4>
+                            <div id="upgradeOptions"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enemy -->
+                <div class="enemy-section" id="enemyArea">
+                    <div class="enemy-sprite" id="enemySprite">🐀</div>
+                    <div class="enemy-name" id="enemyName">Rat</div>
+                    <div class="enemy-health">HP: <span id="enemyHealth">20</span>/<span id="enemyMaxHealth">20</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill health-fill" id="enemyHealthBar" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <!-- Dice Selection -->
+                <div class="dice-selection">
+                    <h4>🎲 Select Your Dice</h4>
+                    <div class="dice-grid" id="diceGrid"></div>
+                    <div>Selected Cost: <span id="selectedCost">0</span> stamina</div>
+                    <div id="comboPreview" style="margin-top: 6px; color: #ffd700; font-weight: bold; opacity: 0; transition: opacity 0.3s ease; font-size: 0.8em;"></div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn btn-attack" id="attackBtn" onclick="attack()">⚔️ Attack</button>
+                    <button class="btn btn-rest" onclick="rest()">😴 Rest (+5)</button>
+                </div>
+
+                <!-- Combat Log -->
+                <div class="combat-log" id="combatLog">
+                    <div class="log-entry log-info">Welcome to the Rogue Dice Dungeon! Select dice and attack to begin.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export/Import Modal -->
+    <div class="modal" id="exportImportModal">
+        <div class="modal-content">
+            <h2 style="color: #ffd700; margin-bottom: 15px; text-align: center;">📤 Export / Import Save</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #ffd700; margin-bottom: 10px;">📤 Export Current Game</h4>
+                <textarea id="exportData" readonly style="width: 100%; height: 100px; background: #2d3748; color: #fff; border: 1px solid #4a5568; border-radius: 5px; padding: 8px; font-family: monospace; font-size: 0.7em; margin-bottom: 8px; resize: vertical;"></textarea>
+                <div style="margin-bottom: 15px;">
+                    <button class="btn btn-save" onclick="copyExportData()" style="margin-right: 8px; font-size: 0.8em;">📋 Copy</button>
+                    <button class="btn btn-export" onclick="downloadSave()" style="margin-right: 8px; font-size: 0.8em;">💾 Download</button>
+                    <button class="btn btn-rest" onclick="generateExportData()" style="font-size: 0.8em;">🔄 Refresh</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #ffd700; margin-bottom: 10px;">📥 Import Save Game</h4>
+                <textarea id="importData" placeholder="Paste exported save data here..." style="width: 100%; height: 100px; background: #2d3748; color: #fff; border: 1px solid #4a5568; border-radius: 5px; padding: 8px; font-family: monospace; font-size: 0.7em; margin-bottom: 8px; resize: vertical;"></textarea>
+                <div style="margin-bottom: 15px;">
+                    <button class="btn btn-save" onclick="importSave()" style="margin-right: 8px; font-size: 0.8em;">📥 Import Save</button>
+                    <input type="file" id="fileInput" accept=".txt,.json" style="display: none;" onchange="loadSaveFile()">
+                    <button class="btn btn-export" onclick="document.getElementById('fileInput').click()" style="font-size: 0.8em;">📁 Load File</button>
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button class="btn btn-rest" onclick="hideExportImport()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Game Modal -->
+    <div class="modal" id="loadGameModal">
+        <div class="modal-content">
+            <h2 style="color: #ffd700; margin-bottom: 15px; text-align: center;">📁 Load Game</h2>
+            <div id="saveSlots"></div>
+            <div style="margin-top: 15px; text-align: center;">
+                <button class="btn btn-rest" onclick="hideLoadGame()" style="margin-right: 8px;">Cancel</button>
+                <button class="btn btn-save" onclick="deleteSave()" id="deleteBtn" disabled>🗑️ Delete Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen Overlays -->
+    <div class="screen-overlay rest-screen" id="restScreen" style="display: none;">
+        <div class="rest-animation">😴</div>
+        <div>Taking a moment to catch your breath...</div>
+        <div style="font-size: 0.6em; margin-top: 10px; color: #51cf66;">
+            +<span id="restAmount">0</span> Stamina Recovered
+        </div>
+    </div>
+
+    <div class="screen-overlay death-screen" id="deathScreen" style="display: none;">
+        <div class="death-animation">☠️</div>
+        <div>YOU HAVE BEEN DEFEATED!</div>
+        <div style="font-size: 0.6em; margin-top: 10px;">Your adventure ends here...</div>
+        <div style="font-size: 0.5em; margin-top: 15px; opacity: 0.8;">
+            Floor Reached: <span id="finalFloor">1</span> | Gold Earned: <span id="finalGold">0</span>
+        </div>
+        <button class="btn btn-rest" onclick="newGame()" style="margin-top: 20px; font-size: 0.6em; padding: 12px 24px;">
+            🔄 Start New Adventure
+        </button>
+    </div>
+
+    <div class="screen-overlay victory-screen" id="victoryScreen" style="display: none;">
+        <div class="victory-animation">🏆</div>
+        <div>🎉 VICTORY! 🎉</div>
+        <div style="font-size: 0.6em; margin-top: 15px;">You have conquered the Ancient Wyrm!</div>
+        <div style="font-size: 0.5em; margin-top: 15px;">
+            The dungeon trembles and collapses... You are the ultimate champion!
+        </div>
+        <button class="btn btn-save" onclick="newGame()" style="margin-top: 20px; font-size: 0.6em; padding: 12px 24px; background: #ffd700; color: #000;">
+            🆕 Start New Legend
+        </button>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            player: {
+                health: 100,
+                maxHealth: 100,
+                stamina: 15,
+                maxStamina: 15,
+                experience: 0,
+                expNeeded: 50,
+                floor: 1,
+                gold: 50,
+                weapon: { name: 'Bare Hands', bonus: 0 },
+                armor: null,
+                healthPotions: 2,
+                staminaPotions: 1,
+                skillPoints: 2,
+                skills: {
+                    vitality: 0,
+                    endurance: 0,
+                    regeneration: 0,
+                    recovery: 0,
+                    naturalArmor: 0,
+                    combatProwess: 0,
+                    diceEfficiency: 0,
+                    fortune: 0
+                }
+            },
+            currentEnemy: null,
+            selectedDice: [],
+            dice: [
+                { type: 'd6', rarity: 'common', count: 3 },
+                { type: 'd4', rarity: 'common', count: 2 },
+                { type: 'd8', rarity: 'rare', count: 1 }
+            ],
+            inCombat: true,
+            bossState: { enraged: false, turnCounter: 0 },
+            gameVersion: '1.2'
+        };
+
+        // Save system globals
+        let selectedSaveSlot = null;
+        const MAX_SAVE_SLOTS = 3;
+
+        // Combo system configuration
+        const comboSystem = {
+            sameType: {
+                2: { name: "Pair", damageMultiplier: 1.2, effect: "stability" },
+                3: { name: "Triple", damageMultiplier: 1.5, effect: "piercing" },
+                4: { name: "Quad", damageMultiplier: 2.0, effect: "devastating" }
+            },
+            sequential: {
+                name: "Ascending Chain",
+                damageMultiplier: 1.3,
+                effect: "momentum"
+            },
+            sameRoll: {
+                2: { name: "Double Roll", effect: "critical", bonusDamage: 5 },
+                3: { name: "Triple Roll", effect: "massive", bonusDamage: 12 },
+                4: { name: "Quad Roll", effect: "legendary", bonusDamage: 25 }
+            },
+            allHigh: {
+                name: "Perfect Execution",
+                effect: "perfect",
+                bonusDamage: 8,
+                stamina: 3
+            }
+        };
+
+        // Fusion recipes
+        const fusionRecipes = [
+            { input: [{ type: 'd4', count: 2 }], output: { type: 'd6', rarity: 'common' }, cost: 10 },
+            { input: [{ type: 'd6', count: 2 }], output: { type: 'd8', rarity: 'common' }, cost: 25 },
+            { input: [{ type: 'd8', count: 2 }], output: { type: 'd10', rarity: 'rare' }, cost: 50 },
+            { input: [{ type: 'd10', count: 2 }], output: { type: 'd12', rarity: 'epic' }, cost: 100 },
+            { input: [{ type: 'd12', count: 2 }], output: { type: 'd20', rarity: 'legendary' }, cost: 200 }
+        ];
+
+        // Rarity upgrade costs and effects
+        const rarityUpgrades = {
+            'common': { next: 'rare', cost: 50 },
+            'rare': { next: 'epic', cost: 150 },
+            'epic': { next: 'legendary', cost: 400 },
+            'legendary': { next: 'ancient', cost: 1000 },
+            'ancient': { next: 'divine', cost: 2500 }
+        };
+
+        // Rarity reroll thresholds (reroll bottom X%)
+        const rarityRerollThresholds = {
+            'common': 0,      // No rerolls
+            'rare': 0.1,      // Reroll bottom 10%
+            'epic': 0.15,     // Reroll bottom 15%
+            'legendary': 0.2, // Reroll bottom 20%
+            'ancient': 0.25,  // Reroll bottom 25%
+            'divine': 0.3     // Reroll bottom 30%
+        };
+
+        const rarityColors = {
+            'common': '#9ca3af', 'rare': '#3b82f6', 'epic': '#8b5cf6',
+            'legendary': '#f59e0b', 'ancient': '#ef4444', 'divine': '#ffd700'
+        };
+
+        // Skills configuration
+        const skillsConfig = {
+            vitality: { 
+                name: 'Vitality', 
+                description: 'Max Health +10', 
+                maxLevel: 10,
+                icon: '❤️'
+            },
+            endurance: { 
+                name: 'Endurance', 
+                description: 'Max Stamina +3', 
+                maxLevel: 10,
+                icon: '⚡'
+            },
+            regeneration: { 
+                name: 'Regeneration', 
+                description: 'Health regen +2/rest', 
+                maxLevel: 5,
+                icon: '🩹'
+            },
+            recovery: { 
+                name: 'Recovery', 
+                description: 'Stamina regen +2/rest', 
+                maxLevel: 5,
+                icon: '💪'
+            },
+            naturalArmor: { 
+                name: 'Natural Armor', 
+                description: 'Natural armor +1', 
+                maxLevel: 8,
+                icon: '🛡️'
+            },
+            combatProwess: { 
+                name: 'Combat Prowess', 
+                description: 'Extra damage +2', 
+                maxLevel: 10,
+                icon: '⚔️'
+            },
+            diceEfficiency: { 
+                name: 'Dice Mastery', 
+                description: 'Reduce dice costs', 
+                maxLevel: 5,
+                icon: '🎲'
+            },
+            fortune: { 
+                name: 'Fortune', 
+                description: 'Better loot +10%', 
+                maxLevel: 5,
+                icon: '🍀'
+            }
+        };
+
+        // Bosses - updated with floor 12 Ancient Wyrm
+        const bosses = {
+            3: { name: 'Hobgoblin Warlord', sprite: '👺👑', health: 150, dicePool: ['d8', 'd8', 'd8'], exp: 120, gold: 100, ability: 'enrage' },
+            6: { name: 'Vampire Lord', sprite: '🧛‍♂️👑', health: 300, dicePool: ['d10', 'd10', 'd10'], exp: 250, gold: 200, ability: 'lifedrain' },
+            9: { name: 'Lich King', sprite: '🧙‍♂️💀', health: 450, dicePool: ['d12', 'd12', 'd10'], exp: 400, gold: 350, ability: 'darkshield' },
+            12: { name: 'Ancient Wyrm', sprite: '🐉💀', health: 800, dicePool: ['d20', 'd20', 'd12'], exp: 1000, gold: 1000, ability: 'dragonrage', isFinalBoss: true }
+        };
+
+        // Regular enemies - updated with Molly the bandit
+        const enemies = {
+            1: [
+                { name: 'Rat', sprite: '🐀', health: 20, dicePool: ['d4', 'd4'], exp: 15, gold: 5 },
+                { name: 'Rat', sprite: '🐀', health: 25, dicePool: ['d4', 'd6'], exp: 18, gold: 6 },
+                { name: 'Molly the bandit', sprite: '🗡️👩', health: 35, dicePool: ['d6', 'd4'], exp: 25, gold: 12 }
+            ],
+            2: [
+                { name: 'Bandit', sprite: '🗡️', health: 35, dicePool: ['d6', 'd6'], exp: 25, gold: 12 },
+                { name: 'Goblin', sprite: '👹', health: 30, dicePool: ['d4', 'd6', 'd6'], exp: 22, gold: 10 },
+                { name: 'Molly the bandit', sprite: '🗡️👩', health: 40, dicePool: ['d6', 'd6'], exp: 28, gold: 15 }
+            ],
+            3: [
+                { name: 'Wolf', sprite: '🐺', health: 45, dicePool: ['d6', 'd8'], exp: 35, gold: 15 },
+                { name: 'Hobgoblin', sprite: '👺', health: 50, dicePool: ['d6', 'd6', 'd8'], exp: 40, gold: 18 },
+                { name: 'Molly the bandit', sprite: '🗡️👩', health: 50, dicePool: ['d8', 'd6'], exp: 35, gold: 20 }
+            ],
+            4: [
+                { name: 'Skeleton', sprite: '💀', health: 60, dicePool: ['d8', 'd8'], exp: 50, gold: 25 },
+                { name: 'Raider', sprite: '⚔️', health: 65, dicePool: ['d6', 'd8', 'd8'], exp: 55, gold: 28 }
+            ]
+        };
+
+        const staminaCosts = {
+            'd4': 1, 'd6': 1, 'd8': 2, 'd10': 2, 'd12': 3, 'd20': 4
+        };
+
+        // Tab Management
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Refresh content based on tab
+            if (tabName === 'shop') {
+                generateShopInventory();
+            } else if (tabName === 'fusion') {
+                renderFusionRecipes();
+                renderUpgradeOptions();
+            }
+        }
+
+        // Game Functions
+        function initGame() {
+            console.log('Initializing game...');
+            
+            try {
+                // Start fresh game
+                spawnEnemy();
+                updateUI();
+                renderDiceSelection();
+                renderDiceInventory();
+                renderSkills();
+                generateShopInventory();
+                renderFusionRecipes();
+                renderUpgradeOptions();
+                console.log('Game initialized successfully!');
+            } catch (error) {
+                console.error('Initialization error:', error);
+                // Fallback initialization
+                gameState.currentEnemy = { name: 'Rat', sprite: '🐀', health: 20, maxHealth: 20 };
+                updateUI();
+                renderDiceSelection();
+            }
+        }
+
+        function spawnEnemy() {
+            const floor = gameState.player.floor;
+            
+            // Check for boss every 3 floors and final boss at 12
+            if (floor % 3 === 0 && bosses[floor]) {
+                const boss = bosses[floor];
+                gameState.currentEnemy = {
+                    ...boss,
+                    maxHealth: boss.health,
+                    isBoss: true,
+                    isFinalBoss: boss.isFinalBoss || false
+                };
+                gameState.bossState = { enraged: false, turnCounter: 0 };
+                if (boss.isFinalBoss) {
+                    addCombatLog(`🐉 FINAL BOSS: ${boss.name} awakens! The fate of the realm hangs in the balance!`, 'log-damage');
+                } else {
+                    addCombatLog(`💀 BOSS: ${boss.name} appears!`, 'log-damage');
+                }
+            } else {
+                // Regular enemy
+                const maxFloor = Math.max(...Object.keys(enemies).map(Number));
+                const floorEnemies = enemies[Math.min(floor, maxFloor)] || enemies[maxFloor];
+                const enemyTemplate = floorEnemies[Math.floor(Math.random() * floorEnemies.length)];
+                gameState.currentEnemy = {
+                    ...enemyTemplate,
+                    maxHealth: enemyTemplate.health,
+                    isBoss: false,
+                    isFinalBoss: false
+                };
+            }
+            gameState.inCombat = true;
+        }
+
+        function updateUI() {
+            const player = gameState.player;
+            const enemy = gameState.currentEnemy;
+
+            // Player stats
+            document.getElementById('health').textContent = player.health;
+            document.getElementById('maxHealth').textContent = player.maxHealth;
+            document.getElementById('stamina').textContent = player.stamina;
+            document.getElementById('maxStamina').textContent = player.maxStamina;
+            document.getElementById('experience').textContent = player.experience;
+            document.getElementById('expNeeded').textContent = player.expNeeded;
+            document.getElementById('floor').textContent = player.floor;
+            document.getElementById('gold').textContent = player.gold;
+
+            // Progress bars
+            document.getElementById('healthBar').style.width = (player.health / player.maxHealth * 100) + '%';
+            document.getElementById('staminaBar').style.width = (player.stamina / player.maxStamina * 100) + '%';
+            document.getElementById('expBar').style.width = (player.experience / player.expNeeded * 100) + '%';
+
+            // Enemy
+            if (enemy) {
+                document.getElementById('enemySprite').textContent = enemy.sprite;
+                document.getElementById('enemyName').textContent = enemy.name;
+                document.getElementById('enemyHealth').textContent = enemy.health;
+                document.getElementById('enemyMaxHealth').textContent = enemy.maxHealth;
+                document.getElementById('enemyHealthBar').style.width = (enemy.health / enemy.maxHealth * 100) + '%';
+                
+                // Boss glow effects
+                const enemyArea = document.getElementById('enemyArea');
+                enemyArea.classList.remove('boss-glow', 'final-boss-glow');
+                if (enemy.isFinalBoss) {
+                    enemyArea.classList.add('final-boss-glow');
+                } else if (enemy.isBoss) {
+                    enemyArea.classList.add('boss-glow');
+                }
+            }
+
+            // Equipment with skill bonuses
+            const totalWeaponBonus = player.weapon.bonus + (player.skills.combatProwess * 2);
+            document.getElementById('weaponSlot').textContent = `${player.weapon.name} (+${totalWeaponBonus})`;
+            
+            const totalArmor = player.skills.naturalArmor + (player.armor ? player.armor.protection : 0);
+            if (player.armor) {
+                document.getElementById('armorSlot').textContent = `${player.armor.name} (${totalArmor})`;
+            } else if (player.skills.naturalArmor > 0) {
+                document.getElementById('armorSlot').textContent = `Natural (${totalArmor})`;
+            } else {
+                document.getElementById('armorSlot').textContent = 'None (0)';
+            }
+            
+            document.getElementById('healthPotions').textContent = player.healthPotions;
+            document.getElementById('staminaPotions').textContent = player.staminaPotions;
+            document.getElementById('skillPoints').textContent = player.skillPoints;
+        }
+
+        function renderDiceSelection() {
+            const diceGrid = document.getElementById('diceGrid');
+            diceGrid.innerHTML = '';
+
+            // Sort dice by value (d4, d6, d8, d10, d12, d20)
+            const sortedDiceGroups = [];
+            gameState.dice.forEach((diceGroup, groupIndex) => {
+                for (let i = 0; i < diceGroup.count; i++) {
+                    sortedDiceGroups.push({
+                        ...diceGroup,
+                        originalGroupIndex: groupIndex,
+                        diceIndex: i,
+                        sortValue: parseInt(diceGroup.type.substring(1))
+                    });
+                }
+            });
+            
+            sortedDiceGroups.sort((a, b) => a.sortValue - b.sortValue);
+
+            sortedDiceGroups.forEach((diceInfo) => {
+                const die = document.createElement('div');
+                die.className = `die ${diceInfo.rarity}`;
+                die.textContent = diceInfo.type.toUpperCase();
+                
+                // Add reroll indicator for higher rarity dice
+                const rerollThreshold = rarityRerollThresholds[diceInfo.rarity];
+                if (rerollThreshold > 0) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'reroll-indicator';
+                    indicator.textContent = '↻';
+                    indicator.title = `Rerolls bottom ${Math.floor(rerollThreshold * 100)}%`;
+                    die.appendChild(indicator);
+                }
+                
+                const cost = getEffectiveStaminaCost(diceInfo.type);
+                if (gameState.player.stamina < cost) {
+                    die.classList.add('disabled');
+                }
+
+                die.onclick = () => toggleDiceSelection(diceInfo.originalGroupIndex, diceInfo.diceIndex, die);
+                diceGrid.appendChild(die);
+            });
+
+            updateSelectedCost();
+        }
+
+        function renderDiceInventory() {
+            const inventory = document.getElementById('diceInventory');
+            inventory.innerHTML = '';
+
+            gameState.dice.forEach(diceGroup => {
+                const item = document.createElement('div');
+                item.className = 'equipment-slot';
+                
+                // Show rarity effects
+                let rarityEffect = '';
+                const rerollThreshold = rarityRerollThresholds[diceGroup.rarity];
+                if (rerollThreshold > 0) {
+                    rarityEffect = ` (↻${Math.floor(rerollThreshold * 100)}%)`;
+                }
+                
+                item.innerHTML = `
+                    <span class="rarity-${diceGroup.rarity}">${diceGroup.type.toUpperCase()} (${diceGroup.rarity})${rarityEffect}</span>
+                    <span>×${diceGroup.count}</span>
+                `;
+                inventory.appendChild(item);
+            });
+        }
+
+        function toggleDiceSelection(groupIndex, diceIndex, element) {
+            if (element.classList.contains('disabled')) return;
+
+            const diceKey = `${groupIndex}-${diceIndex}`;
+            const diceGroup = gameState.dice[groupIndex];
+            const cost = getEffectiveStaminaCost(diceGroup.type);
+
+            if (element.classList.contains('selected')) {
+                element.classList.remove('selected');
+                gameState.selectedDice = gameState.selectedDice.filter(d => d.key !== diceKey);
+            } else {
+                const totalCost = gameState.selectedDice.reduce((sum, d) => sum + getEffectiveStaminaCost(d.type), 0) + cost;
+                if (totalCost <= gameState.player.stamina) {
+                    element.classList.add('selected');
+                    gameState.selectedDice.push({
+                        key: diceKey,
+                        type: diceGroup.type,
+                        rarity: diceGroup.rarity
+                    });
+                }
+            }
+
+            updateSelectedCost();
+        }
+
+        function updateSelectedCost() {
+            const totalCost = gameState.selectedDice.reduce((sum, d) => sum + getEffectiveStaminaCost(d.type), 0);
+            document.getElementById('selectedCost').textContent = totalCost;
+            
+            const canAfford = totalCost <= gameState.player.stamina;
+            document.getElementById('attackBtn').disabled = gameState.selectedDice.length === 0 || !gameState.inCombat || !canAfford;
+            
+            // Check for combos and show preview
+            const combo = detectCombo(gameState.selectedDice);
+            const comboPreview = document.getElementById('comboPreview');
+            
+            if (combo && gameState.selectedDice.length > 1) {
+                comboPreview.textContent = `🔥 ${combo.name} Combo! (${combo.description})`;
+                comboPreview.style.opacity = '1';
+                
+                // Add glow to selected dice
+                document.querySelectorAll('.die.selected').forEach(die => {
+                    die.classList.add('combo-glow');
+                });
+            } else {
+                comboPreview.style.opacity = '0';
+                document.querySelectorAll('.die.selected').forEach(die => {
+                    die.classList.remove('combo-glow');
+                });
+            }
+        }
+
+        function detectCombo(selectedDice) {
+            if (selectedDice.length < 2) return null;
+
+            // Group by dice type
+            const typeGroups = {};
+            selectedDice.forEach(dice => {
+                if (!typeGroups[dice.type]) typeGroups[dice.type] = 0;
+                typeGroups[dice.type]++;
+            });
+
+            // Check for same type combos
+            for (let [type, count] of Object.entries(typeGroups)) {
+                if (count >= 2 && comboSystem.sameType[count]) {
+                    const combo = comboSystem.sameType[count];
+                    return {
+                        name: combo.name,
+                        description: `${combo.damageMultiplier}x damage`,
+                        type: 'sameType',
+                        count: count,
+                        diceType: type,
+                        effect: combo
+                    };
+                }
+            }
+
+            // Check for sequential combo (d4, d6, d8, etc.)
+            if (selectedDice.length >= 3) {
+                const types = [...new Set(selectedDice.map(d => d.type))].sort((a, b) => {
+                    return parseInt(a.substring(1)) - parseInt(b.substring(1));
+                });
+                
+                let isSequential = true;
+                for (let i = 1; i < types.length; i++) {
+                    const prev = parseInt(types[i-1].substring(1));
+                    const curr = parseInt(types[i].substring(1));
+                    if (curr !== prev + 2) {
+                        isSequential = false;
+                        break;
+                    }
+                }
+                
+                if (isSequential && types.length >= 3) {
+                    return {
+                        name: comboSystem.sequential.name,
+                        description: `${comboSystem.sequential.damageMultiplier}x damage`,
+                        type: 'sequential',
+                        effect: comboSystem.sequential
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        function checkRollCombo(rollResults) {
+            // Group by rolled value
+            const rollGroups = {};
+            rollResults.forEach(result => {
+                if (!rollGroups[result.roll]) rollGroups[result.roll] = 0;
+                rollGroups[result.roll]++;
+            });
+
+            // Check for same roll combos
+            for (let [roll, count] of Object.entries(rollGroups)) {
+                if (count >= 2 && comboSystem.sameRoll[count]) {
+                    const combo = comboSystem.sameRoll[count];
+                    return {
+                        name: combo.name,
+                        description: `All rolled ${roll}!`,
+                        type: 'sameRoll',
+                        roll: parseInt(roll),
+                        count: count,
+                        effect: combo
+                    };
+                }
+            }
+
+            // Check for all high rolls (75% or higher of max)
+            const highRolls = rollResults.filter(result => {
+                const maxValue = parseInt(result.diceType.substring(1));
+                return result.roll >= Math.ceil(maxValue * 0.75);
+            });
+
+            if (highRolls.length === rollResults.length && rollResults.length >= 2) {
+                return {
+                    name: comboSystem.allHigh.name,
+                    description: 'All high rolls!',
+                    type: 'allHigh',
+                    effect: comboSystem.allHigh
+                };
+            }
+
+            return null;
+        }
+
+        function getEffectiveStaminaCost(diceType) {
+            let baseCost = staminaCosts[diceType];
+            if (gameState.player.skills.diceEfficiency >= 5) {
+                baseCost = Math.max(1, baseCost - 1);
+            }
+            return baseCost;
+        }
+
+        function rollDice(diceType, rarity = 'common') {
+            const sides = parseInt(diceType.substring(1));
+            let roll = Math.floor(Math.random() * sides) + 1;
+            
+            // Apply rarity reroll effect
+            const rerollThreshold = rarityRerollThresholds[rarity];
+            if (rerollThreshold > 0) {
+                const lowRollThreshold = Math.ceil(sides * rerollThreshold);
+                if (roll <= lowRollThreshold) {
+                    // Reroll once
+                    const newRoll = Math.floor(Math.random() * sides) + 1;
+                    roll = newRoll;
+                }
+            }
+            
+            return roll;
+        }
+
+        function attack() {
+            if (gameState.selectedDice.length === 0 || !gameState.inCombat) return;
+
+            const totalCost = gameState.selectedDice.reduce((sum, d) => sum + getEffectiveStaminaCost(d.type), 0);
+            gameState.player.stamina -= totalCost;
+
+            const combatArea = document.getElementById('enemyArea');
+            combatArea.classList.add('combat-shake');
+
+            document.querySelectorAll('.die.selected').forEach(die => {
+                die.classList.add('dice-roll-animation');
+            });
+
+            // Detect pre-roll combo
+            const preCombo = detectCombo(gameState.selectedDice);
+
+            setTimeout(() => {
+                let totalDamage = 0;
+                let rollResults = [];
+
+                // Roll all dice and store results
+                gameState.selectedDice.forEach(dice => {
+                    const roll = rollDice(dice.type, dice.rarity);
+                    rollResults.push({
+                        diceType: dice.type,
+                        roll: roll,
+                        rarity: dice.rarity
+                    });
+                    totalDamage += roll;
+                });
+
+                // Check for roll-based combos
+                const rollCombo = checkRollCombo(rollResults);
+                let activeCombo = preCombo || rollCombo;
+
+                // Apply base weapon and skill damage
+                totalDamage += gameState.player.weapon.bonus + (gameState.player.skills.combatProwess * 2);
+
+                // Apply combo effects
+                let comboBonus = 0;
+                let comboEffects = [];
+                
+                if (activeCombo) {
+                    // Apply damage multipliers
+                    if (activeCombo.effect.damageMultiplier) {
+                        totalDamage = Math.floor(totalDamage * activeCombo.effect.damageMultiplier);
+                        comboEffects.push(`${activeCombo.effect.damageMultiplier}x damage`);
+                    }
+                    
+                    // Apply bonus damage
+                    if (activeCombo.effect.bonusDamage) {
+                        comboBonus = activeCombo.effect.bonusDamage;
+                        totalDamage += comboBonus;
+                        comboEffects.push(`+${comboBonus} bonus`);
+                    }
+                    
+                    // Apply special effects
+                    if (activeCombo.effect.stamina) {
+                        gameState.player.stamina = Math.min(
+                            gameState.player.maxStamina,
+                            gameState.player.stamina + activeCombo.effect.stamina
+                        );
+                        comboEffects.push(`+${activeCombo.effect.stamina} stamina`);
+                    }
+
+                    // Show combo popup
+                    showComboPopup(activeCombo, combatArea);
+                }
+
+                // Apply damage to enemy
+                gameState.currentEnemy.health -= totalDamage;
+                
+                // Log the attack
+                const rollText = rollResults.map(r => `${r.diceType}: ${r.roll}`).join(', ');
+                let logMessage = `🎲 Rolled: ${rollText} = ${totalDamage} damage!`;
+                
+                if (activeCombo) {
+                    logMessage += ` 🔥 ${activeCombo.name} COMBO!`;
+                }
+                
+                addCombatLog(logMessage, 'log-damage');
+                showDamagePopup(totalDamage, 'enemy');
+
+                setTimeout(() => {
+                    if (gameState.currentEnemy.health <= 0) {
+                        enemyDefeated();
+                    } else {
+                        enemyAttack();
+                    }
+
+                    gameState.selectedDice = [];
+                    document.querySelectorAll('.die.selected').forEach(d => {
+                        d.classList.remove('selected', 'dice-roll-animation', 'combo-glow');
+                    });
+                    
+                    combatArea.classList.remove('combat-shake');
+                    updateUI();
+                    renderDiceSelection();
+                }, 500);
+            }, 1000);
+        }
+
+        function showComboPopup(combo, targetElement) {
+            const popup = document.createElement('div');
+            popup.className = 'combo-popup';
+            popup.textContent = `${combo.name} COMBO!`;
+            
+            targetElement.style.position = 'relative';
+            targetElement.appendChild(popup);
+            
+            setTimeout(() => popup.remove(), 2000);
+        }
+
+        function enemyAttack() {
+            const enemy = gameState.currentEnemy;
+            gameState.bossState.turnCounter++;
+            
+            let totalDamage = 0;
+            let enemyRolls = [];
+            let actualDicePool = [...enemy.dicePool];
+
+            // Special boss abilities
+            if (enemy.isBoss) {
+                if (enemy.ability === 'enrage' && !gameState.bossState.enraged && 
+                    enemy.health <= enemy.maxHealth * 0.5) {
+                    gameState.bossState.enraged = true;
+                    actualDicePool.push('d6');
+                    addCombatLog(`🔥 ${enemy.name} becomes ENRAGED!`, 'log-damage');
+                } else if (enemy.ability === 'dragonrage' && gameState.bossState.turnCounter % 3 === 0) {
+                    actualDicePool.push('d12');
+                    addCombatLog(`🐉 ${enemy.name} unleashes DRAGON RAGE!`, 'log-damage');
+                }
+            }
+
+            actualDicePool.forEach(diceType => {
+                const roll = rollDice(diceType);
+                enemyRolls.push(`${diceType}: ${roll}`);
+                totalDamage += roll;
+            });
+
+            let totalArmor = gameState.player.skills.naturalArmor;
+            if (gameState.player.armor) {
+                totalArmor += gameState.player.armor.protection;
+            }
+            let finalDamage = Math.max(1, totalDamage - totalArmor);
+
+            gameState.player.health -= finalDamage;
+            
+            if (enemy.isBoss && enemy.ability === 'lifedrain') {
+                const healAmount = Math.floor(finalDamage * 0.5);
+                enemy.health = Math.min(enemy.maxHealth, enemy.health + healAmount);
+                addCombatLog(`🩸 ${enemy.name} drains life and heals ${healAmount} HP!`, 'log-heal');
+            }
+            
+            addCombatLog(`💥 ${enemy.name} rolls: ${enemyRolls.join(', ')} = ${finalDamage} damage!`, 'log-damage');
+            showDamagePopup(finalDamage, 'player');
+
+            if (gameState.player.health <= 0) {
+                gameOver();
+            }
+        }
+
+        function enemyDefeated() {
+            const enemy = gameState.currentEnemy;
+            gameState.player.experience += enemy.exp;
+            gameState.player.gold += enemy.gold;
+            gameState.inCombat = false;
+
+            addCombatLog(`✨ ${enemy.name} defeated! +${enemy.exp} XP, +${enemy.gold} gold`, 'log-loot');
+
+            // Check for final boss victory
+            if (enemy.isFinalBoss) {
+                showVictoryScreen();
+                return;
+            }
+
+            if (enemy.isBoss) {
+                const bonusGold = gameState.player.floor * 25;
+                gameState.player.gold += bonusGold;
+                addCombatLog(`👑 Boss bonus: +${bonusGold} gold!`, 'log-loot');
+                
+                const weapon = {
+                    name: `Epic ${['Slayer', 'Destroyer', 'Annihilator'][Math.floor(Math.random() * 3)]}`,
+                    bonus: 8 + Math.floor(Math.random() * 5)
+                };
+                gameState.player.weapon = weapon;
+                addCombatLog(`👑 BOSS LOOT: ${weapon.name}! (+${weapon.bonus} damage)`, 'log-loot');
+            } else {
+                dropRegularLoot();
+            }
+
+            // Auto-save after victory
+            autoSave();
+
+            if (gameState.player.experience >= gameState.player.expNeeded) {
+                levelUp();
+            } else {
+                setTimeout(() => {
+                    showRestPeriod(() => {
+                        spawnEnemy();
+                        updateUI();
+                    });
+                }, 1500);
+            }
+        }
+
+        function showVictoryScreen() {
+            const victoryScreen = document.getElementById('victoryScreen');
+            victoryScreen.style.display = 'flex';
+            addCombatLog('🏆 VICTORY! You have conquered the Ancient Wyrm and saved the realm!', 'log-heal');
+        }
+
+        function dropRegularLoot() {
+            const floor = gameState.player.floor;
+            const fortuneBonus = gameState.player.skills.fortune * 0.1;
+            let roll = Math.random() * (1 + fortuneBonus);
+            
+            if (roll < (0.25 + fortuneBonus) && floor > 3) {
+                const weapon = generateWeapon(floor);
+                if (weapon.bonus > gameState.player.weapon.bonus) {
+                    gameState.player.weapon = weapon;
+                    addCombatLog(`⚔️ Found ${weapon.name}! (+${weapon.bonus} damage)`, 'log-loot');
+                }
+            } else if (roll < (0.5 + fortuneBonus) && floor > 3) {
+                const armor = generateArmor(floor);
+                const currentArmor = gameState.player.armor ? gameState.player.armor.protection : 0;
+                if (armor.protection > currentArmor) {
+                    gameState.player.armor = armor;
+                    addCombatLog(`🛡️ Found ${armor.name}! (${armor.protection} protection)`, 'log-loot');
+                }
+            } else if (roll < (1.0 + fortuneBonus)) {
+                if (Math.random() < 0.6) {
+                    gameState.player.healthPotions++;
+                    addCombatLog(`🧪 Found Health Potion!`, 'log-loot');
+                } else {
+                    gameState.player.staminaPotions++;
+                    addCombatLog(`⚡ Found Stamina Potion!`, 'log-loot');
+                }
+            }
+        }
+
+        function generateWeapon(floor) {
+            const names = ['Sword', 'Axe', 'Mace', 'Dagger', 'Spear'];
+            const rarity = getDiceRarityForFloor(floor);
+            const bonusBase = { common: 2, rare: 4, epic: 6, legendary: 8 };
+            
+            return {
+                name: `${rarity} ${names[Math.floor(Math.random() * names.length)]}`,
+                bonus: bonusBase[rarity] + Math.floor(Math.random() * 3)
+            };
+        }
+
+        function generateArmor(floor) {
+            const names = ['Leather Armor', 'Chain Mail', 'Plate Armor', 'Robes'];
+            const rarity = getDiceRarityForFloor(floor);
+            const protectionBase = { common: 2, rare: 4, epic: 6, legendary: 8 };
+            
+            return {
+                name: `${rarity} ${names[Math.floor(Math.random() * names.length)]}`,
+                protection: protectionBase[rarity] + Math.floor(Math.random() * 3)
+            };
+        }
+
+        function getDiceRarityForFloor(floor) {
+            const roll = Math.random();
+            
+            if (floor === 1) {
+                return roll < 0.9 ? 'common' : 'rare';
+            } else if (floor === 2) {
+                return roll < 0.7 ? 'common' : 'rare';
+            } else if (floor <= 4) {
+                if (roll < 0.5) return 'common';
+                if (roll < 0.85) return 'rare';
+                return 'epic';
+            } else {
+                if (roll < 0.3) return 'common';
+                if (roll < 0.6) return 'rare';
+                if (roll < 0.85) return 'epic';
+                return 'legendary';
+            }
+        }
+
+        function levelUp() {
+            gameState.player.floor++;
+            gameState.player.experience = 0;
+            
+            const skillPointsGained = (gameState.player.floor % 3 === 0) ? 2 : 1;
+            gameState.player.skillPoints += skillPointsGained;
+            
+            const multiplier = gameState.player.floor <= 5 ? 1.2 : 1.4;
+            gameState.player.expNeeded = Math.floor(gameState.player.expNeeded * multiplier);
+            gameState.player.stamina = gameState.player.maxStamina;
+            
+            addCombatLog(`🏰 Floor ${gameState.player.floor} reached! +${skillPointsGained} skill points!`, 'log-heal');
+            
+            // Auto-save after level up
+            autoSave();
+            
+            setTimeout(() => {
+                spawnEnemy();
+                updateUI();
+                renderSkills();
+            }, 2000);
+        }
+
+        function showRestPeriod(callback) {
+            const restScreen = document.getElementById('restScreen');
+            const restAmountSpan = document.getElementById('restAmount');
+            
+            const baseRecovery = 2 + Math.floor(Math.random() * 5);
+            const skillBonus = gameState.player.skills.recovery * 2;
+            const totalStaminaRecovered = baseRecovery + skillBonus;
+            
+            const oldStamina = gameState.player.stamina;
+            gameState.player.stamina = Math.min(
+                gameState.player.maxStamina, 
+                gameState.player.stamina + totalStaminaRecovered
+            );
+            
+            const healthRegen = gameState.player.skills.regeneration * 2;
+            if (healthRegen > 0) {
+                gameState.player.health = Math.min(
+                    gameState.player.maxHealth,
+                    gameState.player.health + healthRegen
+                );
+            }
+            
+            const actualStaminaRecovered = gameState.player.stamina - oldStamina;
+            restAmountSpan.textContent = actualStaminaRecovered;
+            
+            restScreen.style.display = 'flex';
+            
+            let restMessage = `😴 Rested and recovered ${actualStaminaRecovered} stamina`;
+            if (healthRegen > 0) {
+                restMessage += ` and ${healthRegen} health`;
+            }
+            addCombatLog(restMessage, 'log-heal');
+            
+            setTimeout(() => {
+                restScreen.style.display = 'none';
+                updateUI();
+                callback();
+            }, 2000);
+        }
+
+        function applySkillEffects() {
+            const player = gameState.player;
+            
+            const baseMaxHealth = 100 + (player.skills.vitality * 10);
+            const baseMaxStamina = 15 + (player.skills.endurance * 3);
+            
+            if (baseMaxHealth > player.maxHealth) {
+                const increase = baseMaxHealth - player.maxHealth;
+                player.maxHealth = baseMaxHealth;
+                player.health += increase;
+            }
+            
+            if (baseMaxStamina > player.maxStamina) {
+                const increase = baseMaxStamina - player.maxStamina;
+                player.maxStamina = baseMaxStamina;
+                player.stamina += increase;
+            }
+        }
+
+        function renderSkills() {
+            const skillsList = document.getElementById('skillsList');
+            skillsList.innerHTML = '';
+
+            Object.keys(skillsConfig).forEach(skillKey => {
+                const skill = skillsConfig[skillKey];
+                const currentLevel = gameState.player.skills[skillKey];
+                const maxLevel = skill.maxLevel;
+                const canUpgrade = gameState.player.skillPoints > 0 && currentLevel < maxLevel;
+
+                const skillItem = document.createElement('div');
+                skillItem.className = 'skill-item';
+                
+                skillItem.innerHTML = `
+                    <div class="skill-info">
+                        <div class="skill-name">${skill.icon} ${skill.name}</div>
+                        <div class="skill-description">${skill.description}</div>
+                    </div>
+                    <span class="skill-level">${currentLevel}/${maxLevel}</span>
+                    <button class="skill-upgrade-btn" onclick="upgradeSkill('${skillKey}')" 
+                            ${!canUpgrade ? 'disabled' : ''}>
+                        ${canUpgrade ? '+' : 'MAX'}
+                    </button>
+                `;
+                
+                skillsList.appendChild(skillItem);
+            });
+        }
+
+        function upgradeSkill(skillKey) {
+            const player = gameState.player;
+            const skill = skillsConfig[skillKey];
+            
+            if (player.skillPoints > 0 && player.skills[skillKey] < skill.maxLevel) {
+                player.skillPoints--;
+                player.skills[skillKey]++;
+                
+                applySkillEffects();
+                updateUI();
+                renderSkills();
+                renderDiceSelection();
+                
+                addCombatLog(`⚡ ${skill.name} increased to level ${player.skills[skillKey]}!`, 'log-heal');
+                
+                // Auto-save after skill upgrade
+                autoSave();
+            }
+        }
+
+        function generateShopInventory() {
+            const shopGrid = document.getElementById('shopGrid');
+            shopGrid.innerHTML = '';
+
+            // 3 dice for sale
+            for (let i = 0; i < 3; i++) {
+                const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
+                const diceType = diceTypes[Math.floor(Math.random() * diceTypes.length)];
+                const rarity = getDiceRarityForFloor(gameState.player.floor);
+                const price = getDicePrice(diceType, rarity);
+                
+                const item = createShopItem(`🎲 ${rarity} ${diceType}`, price, () => {
+                    if (gameState.player.gold >= price) {
+                        gameState.player.gold -= price;
+                        addDiceToInventory(diceType, rarity);
+                        addCombatLog(`Bought ${rarity} ${diceType} for ${price} gold!`, 'log-info');
+                        updateUI();
+                        renderDiceInventory();
+                        renderDiceSelection();
+                        generateShopInventory(); // Refresh shop
+                        autoSave();
+                    }
+                });
+                shopGrid.appendChild(item);
+            }
+
+            // 2 potions
+            for (let i = 0; i < 2; i++) {
+                if (Math.random() < 0.5) {
+                    const price = 25;
+                    const item = createShopItem('🧪 Health Potion', price, () => {
+                        if (gameState.player.gold >= price) {
+                            gameState.player.gold -= price;
+                            gameState.player.healthPotions++;
+                            addCombatLog(`Bought Health Potion for ${price} gold!`, 'log-info');
+                            updateUI();
+                            generateShopInventory(); // Refresh shop
+                            autoSave();
+                        }
+                    });
+                    shopGrid.appendChild(item);
+                } else {
+                    const price = 20;
+                    const item = createShopItem('⚡ Stamina Potion', price, () => {
+                        if (gameState.player.gold >= price) {
+                            gameState.player.gold -= price;
+                            gameState.player.staminaPotions++;
+                            addCombatLog(`Bought Stamina Potion for ${price} gold!`, 'log-info');
+                            updateUI();
+                            generateShopInventory(); // Refresh shop
+                            autoSave();
+                        }
+                    });
+                    shopGrid.appendChild(item);
+                }
+            }
+        }
+
+        function createShopItem(name, price, onBuy) {
+            const item = document.createElement('div');
+            item.className = 'shop-item';
+            
+            if (gameState.player.gold >= price) {
+                item.classList.add('affordable');
+            } else {
+                item.classList.add('expensive');
+            }
+            
+            item.innerHTML = `
+                <div>${name}</div>
+                <div>💰 ${price}g</div>
+            `;
+            
+            if (gameState.player.gold >= price) {
+                item.onclick = onBuy;
+            }
+            
+            return item;
+        }
+
+        function getDicePrice(diceType, rarity) {
+            const basePrice = { d4: 10, d6: 15, d8: 25, d10: 35, d12: 50, d20: 75 };
+            const rarityMultiplier = { common: 1, rare: 2, epic: 3, legendary: 5, ancient: 8, divine: 12 };
+            return basePrice[diceType] * rarityMultiplier[rarity];
+        }
+
+        function addDiceToInventory(diceType, rarity) {
+            const existing = gameState.dice.find(d => d.type === diceType && d.rarity === rarity);
+            if (existing) {
+                existing.count++;
+            } else {
+                gameState.dice.push({ type: diceType, rarity: rarity, count: 1 });
+            }
+        }
+
+        function rest() {
+            if (!gameState.inCombat) return;
+            
+            gameState.player.stamina = Math.min(gameState.player.maxStamina, gameState.player.stamina + 5);
+            addCombatLog('😴 You rest and recover 5 stamina.', 'log-heal');
+            
+            enemyAttack();
+            updateUI();
+            renderDiceSelection();
+        }
+
+        function useHealthPotion() {
+            if (gameState.player.healthPotions > 0 && gameState.player.health < gameState.player.maxHealth) {
+                gameState.player.healthPotions--;
+                const healAmount = 30 + Math.floor(Math.random() * 21);
+                gameState.player.health = Math.min(gameState.player.maxHealth, gameState.player.health + healAmount);
+                addCombatLog(`🧪 Health potion healed ${healAmount} HP!`, 'log-heal');
+                updateUI();
+                autoSave();
+            }
+        }
+
+        function useStaminaPotion() {
+            if (gameState.player.staminaPotions > 0 && gameState.player.stamina < gameState.player.maxStamina) {
+                gameState.player.staminaPotions--;
+                const staminaAmount = 8 + Math.floor(Math.random() * 5);
+                gameState.player.stamina = Math.min(gameState.player.maxStamina, gameState.player.stamina + staminaAmount);
+                addCombatLog(`⚡ Stamina potion restored ${staminaAmount} stamina!`, 'log-heal');
+                updateUI();
+                renderDiceSelection();
+                autoSave();
+            }
+        }
+
+        function showDamagePopup(damage, target) {
+            const popup = document.createElement('div');
+            popup.className = 'damage-popup';
+            popup.textContent = `-${damage}`;
+            
+            const targetElement = target === 'enemy' ? 
+                document.getElementById('enemyArea') : 
+                document.querySelector('.stats-grid');
+            
+            targetElement.style.position = 'relative';
+            targetElement.appendChild(popup);
+            
+            setTimeout(() => popup.remove(), 1500);
+        }
+
+        function showDeathScreen() {
+            const deathScreen = document.getElementById('deathScreen');
+            const finalFloor = document.getElementById('finalFloor');
+            const finalGold = document.getElementById('finalGold');
+            
+            finalFloor.textContent = gameState.player.floor;
+            finalGold.textContent = gameState.player.gold;
+            
+            deathScreen.style.display = 'flex';
+        }
+
+        function addCombatLog(message, className = 'log-info') {
+            const log = document.getElementById('combatLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            entry.textContent = message;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function gameOver() {
+            addCombatLog('💀 You have been defeated! Game Over!', 'log-damage');
+            gameState.inCombat = false;
+            
+            setTimeout(() => {
+                showDeathScreen();
+            }, 1500);
+        }
+
+        // Fusion Shop Functions
+        function renderFusionRecipes() {
+            const container = document.getElementById('fusionRecipes');
+            container.innerHTML = '';
+
+            fusionRecipes.forEach((recipe, index) => {
+                const inputReq = recipe.input[0]; // Assuming single input type for now
+                const playerDice = gameState.dice.find(d => d.type === inputReq.type);
+                const hasEnough = playerDice && playerDice.count >= inputReq.count;
+                const canAfford = gameState.player.gold >= recipe.cost;
+                const canFuse = hasEnough && canAfford;
+
+                const recipeElement = document.createElement('div');
+                recipeElement.className = `fusion-recipe ${canFuse ? 'affordable' : 'expensive'}`;
+                
+                recipeElement.innerHTML = `
+                    <div>
+                        <span class="rarity-${playerDice ? playerDice.rarity : 'common'}">${inputReq.count}x ${inputReq.type.toUpperCase()}</span>
+                        <div style="font-size: 0.65em; color: #ccc;">
+                            Have: ${playerDice ? playerDice.count : 0}
+                        </div>
+                    </div>
+                    <div class="fusion-arrow">→</div>
+                    <div>
+                        <span class="rarity-${recipe.output.rarity}">${recipe.output.type.toUpperCase()}</span>
+                        <div style="font-size: 0.65em; color: #ffd700;">
+                            💰 ${recipe.cost}g
+                        </div>
+                    </div>
+                `;
+
+                if (canFuse) {
+                    recipeElement.onclick = () => fuseDice(recipe);
+                }
+
+                container.appendChild(recipeElement);
+            });
+        }
+
+        function renderUpgradeOptions() {
+            const container = document.getElementById('upgradeOptions');
+            container.innerHTML = '';
+
+            // Group dice by type and rarity for upgrading
+            gameState.dice.forEach((diceGroup, index) => {
+                const upgrade = rarityUpgrades[diceGroup.rarity];
+                if (!upgrade) return; // Can't upgrade divine dice
+
+                const canAfford = gameState.player.gold >= upgrade.cost;
+
+                const upgradeElement = document.createElement('div');
+                upgradeElement.className = `fusion-recipe ${canAfford && diceGroup.count > 0 ? 'affordable' : 'expensive'}`;
+                
+                upgradeElement.innerHTML = `
+                    <div>
+                        <span class="rarity-${diceGroup.rarity}">${diceGroup.type.toUpperCase()} (${diceGroup.rarity})</span>
+                        <div style="font-size: 0.65em; color: #ccc;">
+                            Count: ${diceGroup.count}
+                        </div>
+                    </div>
+                    <div class="fusion-arrow">✨</div>
+                    <div>
+                        <span class="rarity-${upgrade.next}">${diceGroup.type.toUpperCase()} (${upgrade.next})</span>
+                        <div style="font-size: 0.65em; color: #ffd700;">
+                            💰 ${upgrade.cost}g each
+                        </div>
+                    </div>
+                `;
+
+                if (canAfford && diceGroup.count > 0) {
+                    upgradeElement.onclick = () => upgradeDiceRarity(index);
+                }
+
+                container.appendChild(upgradeElement);
+            });
+        }
+
+        function fuseDice(recipe) {
+            const inputReq = recipe.input[0];
+            const playerDiceIndex = gameState.dice.findIndex(d => d.type === inputReq.type);
+            
+            if (playerDiceIndex === -1) return;
+            
+            const playerDice = gameState.dice[playerDiceIndex];
+            
+            // Check requirements
+            if (playerDice.count < inputReq.count || gameState.player.gold < recipe.cost) {
+                return;
+            }
+
+            // Consume resources
+            playerDice.count -= inputReq.count;
+            gameState.player.gold -= recipe.cost;
+            
+            // Remove dice group if count reaches 0
+            if (playerDice.count === 0) {
+                gameState.dice.splice(playerDiceIndex, 1);
+            }
+
+            // Add new dice
+            addDiceToInventory(recipe.output.type, recipe.output.rarity);
+            
+            addCombatLog(`🔮 Fused ${inputReq.count}x ${inputReq.type} → ${recipe.output.type} (${recipe.output.rarity})!`, 'log-loot');
+            
+            // Update UI
+            updateUI();
+            renderDiceInventory();
+            renderDiceSelection();
+            renderFusionRecipes();
+            renderUpgradeOptions();
+            autoSave();
+        }
+
+        function upgradeDiceRarity(diceIndex) {
+            const diceGroup = gameState.dice[diceIndex];
+            const upgrade = rarityUpgrades[diceGroup.rarity];
+            
+            if (!upgrade || gameState.player.gold < upgrade.cost || diceGroup.count === 0) {
+                return;
+            }
+
+            // Consume resources
+            diceGroup.count -= 1;
+            gameState.player.gold -= upgrade.cost;
+            
+            // Remove dice group if count reaches 0
+            if (diceGroup.count === 0) {
+                gameState.dice.splice(diceIndex, 1);
+            }
+
+            // Add upgraded dice
+            addDiceToInventory(diceGroup.type, upgrade.next);
+            
+            addCombatLog(`✨ Upgraded ${diceGroup.type} from ${diceGroup.rarity} to ${upgrade.next}!`, 'log-loot');
+            
+            // Update UI
+            updateUI();
+            renderDiceInventory();
+            renderDiceSelection();
+            renderFusionRecipes();
+            renderUpgradeOptions();
+            autoSave();
+        }
+
+        // Save/Load Functions
+        function saveGame() {
+            try {
+                const saveData = {
+                    gameState: JSON.parse(JSON.stringify(gameState)),
+                    timestamp: new Date().toISOString(),
+                    version: gameState.gameVersion
+                };
+
+                // Auto-save to slot 0, or use selected slot
+                const slot = selectedSaveSlot !== null ? selectedSaveSlot : 0;
+                localStorage.setItem(`rogueDiceSave_${slot}`, JSON.stringify(saveData));
+                
+                showSaveStatus('💾 Game saved successfully!');
+                addCombatLog('💾 Game saved!', 'log-save');
+                
+                console.log('Game saved to slot', slot);
+            } catch (error) {
+                console.error('Failed to save game:', error);
+                showSaveStatus('❌ Save failed!');
+            }
+        }
+
+        function loadGame(slot) {
+            try {
+                const saveKey = `rogueDiceSave_${slot}`;
+                const saveData = localStorage.getItem(saveKey);
+                
+                if (!saveData) {
+                    console.log('No save data found in slot', slot);
+                    return false;
+                }
+
+                const parsed = JSON.parse(saveData);
+                
+                // Validate save data
+                if (!parsed.gameState || !parsed.gameState.player) {
+                    throw new Error('Invalid save data structure');
+                }
+
+                // Clear current UI state
+                hideLoadGame();
+                document.getElementById('deathScreen').style.display = 'none';
+                document.getElementById('victoryScreen').style.display = 'none';
+
+                // Completely replace game state with loaded data
+                gameState.player = { ...parsed.gameState.player };
+                gameState.currentEnemy = parsed.gameState.currentEnemy ? { ...parsed.gameState.currentEnemy } : null;
+                gameState.selectedDice = [];
+                gameState.dice = parsed.gameState.dice.map(d => ({ ...d }));
+                gameState.inCombat = parsed.gameState.inCombat;
+                gameState.bossState = { ...parsed.gameState.bossState };
+                gameState.gameVersion = parsed.gameState.gameVersion || '1.2';
+                
+                // Ensure all required properties exist
+                validateGameState();
+                
+                // Refresh UI completely
+                updateUI();
+                renderDiceSelection();
+                renderDiceInventory();
+                renderSkills();
+                generateShopInventory();
+                renderFusionRecipes();
+                renderUpgradeOptions();
+                
+                showSaveStatus('📁 Game loaded successfully!');
+                addCombatLog(`📁 Loaded save from ${new Date(parsed.timestamp).toLocaleString()}`, 'log-save');
+                
+                console.log('Game loaded from slot', slot);
+                return true;
+            } catch (error) {
+                console.error('Failed to load game:', error);
+                showSaveStatus('❌ Load failed: ' + error.message);
+                return false;
+            }
+        }
+
+        function validateGameState() {
+            // Ensure all required properties exist with defaults
+            if (!gameState.player) gameState.player = {};
+            if (!gameState.player.skills) gameState.player.skills = {};
+            
+            const defaults = {
+                player: {
+                    health: 100,
+                    maxHealth: 100,
+                    stamina: 15,
+                    maxStamina: 15,
+                    experience: 0,
+                    expNeeded: 50,
+                    floor: 1,
+                    gold: 50,
+                    weapon: { name: 'Bare Hands', bonus: 0 },
+                    armor: null,
+                    healthPotions: 2,
+                    staminaPotions: 1,
+                    skillPoints: 2,
+                    skills: {
+                        vitality: 0,
+                        endurance: 0,
+                        regeneration: 0,
+                        recovery: 0,
+                        naturalArmor: 0,
+                        combatProwess: 0,
+                        diceEfficiency: 0,
+                        fortune: 0
+                    }
+                },
+                selectedDice: [],
+                dice: [
+                    { type: 'd6', rarity: 'common', count: 3 },
+                    { type: 'd4', rarity: 'common', count: 2 },
+                    { type: 'd8', rarity: 'rare', count: 1 }
+                ],
+                inCombat: false,
+                bossState: { enraged: false, turnCounter: 0 },
+                gameVersion: '1.2'
+            };
+
+            // Apply defaults for missing properties
+            for (let key in defaults.player) {
+                if (gameState.player[key] === undefined) {
+                    gameState.player[key] = defaults.player[key];
+                }
+            }
+
+            for (let skill in defaults.player.skills) {
+                if (gameState.player.skills[skill] === undefined) {
+                    gameState.player.skills[skill] = defaults.player.skills[skill];
+                }
+            }
+
+            if (!gameState.dice || gameState.dice.length === 0) {
+                gameState.dice = defaults.dice;
+            }
+
+            if (!gameState.bossState) {
+                gameState.bossState = defaults.bossState;
+            }
+
+            // Clear selected dice when loading
+            gameState.selectedDice = [];
+
+            // Spawn enemy if none exists and in combat
+            if (gameState.inCombat && !gameState.currentEnemy) {
+                spawnEnemy();
+            }
+        }
+
+        function showLoadGame() {
+            renderSaveSlots();
+            document.getElementById('loadGameModal').style.display = 'block';
+        }
+
+        function hideLoadGame() {
+            document.getElementById('loadGameModal').style.display = 'none';
+            selectedSaveSlot = null;
+        }
+
+        function renderSaveSlots() {
+            const slotsContainer = document.getElementById('saveSlots');
+            slotsContainer.innerHTML = '';
+
+            for (let i = 0; i < MAX_SAVE_SLOTS; i++) {
+                const saveData = getSaveData(i);
+                const slot = document.createElement('div');
+                slot.className = 'save-slot';
+                
+                if (saveData) {
+                    const date = new Date(saveData.timestamp);
+                    slot.innerHTML = `
+                        <div class="save-info">
+                            <div class="save-details">
+                                <div><strong>Save Slot ${i + 1}</strong></div>
+                                <div>Floor ${saveData.gameState.player.floor} | ${saveData.gameState.player.gold} Gold</div>
+                                <div class="save-timestamp">${date.toLocaleString()}</div>
+                            </div>
+                            <div>❤️${saveData.gameState.player.health}/${saveData.gameState.player.maxHealth}</div>
+                        </div>
+                    `;
+                    
+                    slot.onclick = () => selectSaveSlot(i, slot);
+                } else {
+                    slot.className += ' empty';
+                    slot.innerHTML = `
+                        <div class="save-info">
+                            <div class="save-details">
+                                <div><strong>Save Slot ${i + 1}</strong></div>
+                                <div>Empty</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                slotsContainer.appendChild(slot);
+            }
+        }
+
+        function selectSaveSlot(slot, element) {
+            // Remove previous selection
+            document.querySelectorAll('.save-slot').forEach(s => s.style.borderColor = '#4a5568');
+            
+            // Select new slot
+            element.style.borderColor = '#ffd700';
+            selectedSaveSlot = slot;
+            
+            // Enable/disable buttons
+            const saveData = getSaveData(slot);
+            document.getElementById('deleteBtn').disabled = !saveData;
+            
+            // Load immediately if save exists
+            if (saveData) {
+                loadGame(slot);
+            }
+        }
+
+        function getSaveData(slot) {
+            try {
+                const saveKey = `rogueDiceSave_${slot}`;
+                const data = localStorage.getItem(saveKey);
+                return data ? JSON.parse(data) : null;
+            } catch (error) {
+                console.error('Error reading save slot', slot, error);
+                return null;
+            }
+        }
+
+        function deleteSave() {
+            if (selectedSaveSlot !== null) {
+                const saveKey = `rogueDiceSave_${selectedSaveSlot}`;
+                localStorage.removeItem(saveKey);
+                renderSaveSlots();
+                selectedSaveSlot = null;
+                document.getElementById('deleteBtn').disabled = true;
+                showSaveStatus('🗑️ Save deleted!');
+            }
+        }
+
+        function showSaveStatus(message) {
+            const status = document.getElementById('saveStatus');
+            status.textContent = message;
+            status.classList.add('show');
+            
+            setTimeout(() => {
+                status.classList.remove('show');
+            }, 2000);
+        }
+
+        // Export/Import Functions
+        function showExportImport() {
+            generateExportData();
+            document.getElementById('exportImportModal').style.display = 'block';
+        }
+
+        function hideExportImport() {
+            document.getElementById('exportImportModal').style.display = 'none';
+            document.getElementById('importData').value = '';
+        }
+
+        function generateExportData() {
+            try {
+                console.log('Generating export data...');
+                
+                // Create clean export data
+                const exportData = {
+                    gameState: {
+                        player: JSON.parse(JSON.stringify(gameState.player)),
+                        currentEnemy: gameState.currentEnemy ? JSON.parse(JSON.stringify(gameState.currentEnemy)) : null,
+                        selectedDice: [],
+                        dice: JSON.parse(JSON.stringify(gameState.dice)),
+                        inCombat: gameState.inCombat,
+                        bossState: JSON.parse(JSON.stringify(gameState.bossState)),
+                        gameVersion: gameState.gameVersion || '1.2'
+                    },
+                    timestamp: new Date().toISOString(),
+                    version: gameState.gameVersion || '1.2',
+                    exportType: 'RogueDiceDungeon_Save'
+                };
+
+                // Encode to base64
+                const jsonString = JSON.stringify(exportData);
+                const encoded = btoa(unescape(encodeURIComponent(jsonString))); // Handle unicode properly
+                
+                const exportTextarea = document.getElementById('exportData');
+                exportTextarea.value = encoded;
+                
+                showSaveStatus('📤 Export data generated!');
+                console.log('Export successful, length:', encoded.length);
+                
+            } catch (error) {
+                console.error('Export failed:', error);
+                showSaveStatus('❌ Export failed: ' + error.message);
+                
+                // Fallback: show raw JSON
+                try {
+                    const fallbackData = JSON.stringify({
+                        player: gameState.player,
+                        floor: gameState.player.floor,
+                        timestamp: new Date().toISOString()
+                    }, null, 2);
+                    document.getElementById('exportData').value = fallbackData;
+                    showSaveStatus('⚠️ Showing raw JSON data');
+                } catch (fallbackError) {
+                    document.getElementById('exportData').value = 'Export failed. Please try again.';
+                }
+            }
+        }
+
+        function copyExportData() {
+            const exportTextarea = document.getElementById('exportData');
+            exportTextarea.select();
+            exportTextarea.setSelectionRange(0, 99999);
+
+            try {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(exportTextarea.value).then(() => {
+                        showSaveStatus('📋 Copied to clipboard!');
+                    }).catch(() => {
+                        // Fallback
+                        document.execCommand('copy');
+                        showSaveStatus('📋 Copied to clipboard!');
+                    });
+                } else {
+                    document.execCommand('copy');
+                    showSaveStatus('📋 Copied to clipboard!');
+                }
+            } catch (error) {
+                console.error('Copy failed:', error);
+                showSaveStatus('❌ Copy failed - select and copy manually');
+            }
+        }
+
+        function downloadSave() {
+            try {
+                const exportData = document.getElementById('exportData').value;
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `RogueDice_Save_Floor${gameState.player.floor}_${timestamp}.txt`;
+                
+                const blob = new Blob([exportData], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showSaveStatus('💾 Save file downloaded!');
+            } catch (error) {
+                console.error('Download failed:', error);
+                showSaveStatus('❌ Download failed!');
+            }
+        }
+
+        function importSave() {
+            const importData = document.getElementById('importData').value.trim();
+            
+            if (!importData) {
+                showSaveStatus('❌ Please paste save data first!');
+                return;
+            }
+
+            try {
+                let jsonString;
+                
+                // Try to decode from base64 first
+                try {
+                    jsonString = decodeURIComponent(escape(atob(importData)));
+                } catch (e) {
+                    // If base64 fails, try as raw JSON
+                    jsonString = importData;
+                }
+
+                const parsed = JSON.parse(jsonString);
+                
+                // Validate the import data structure
+                if (!parsed.exportType || parsed.exportType !== 'RogueDiceDungeon_Save') {
+                    throw new Error('Invalid save file format');
+                }
+
+                if (!parsed.gameState || !parsed.gameState.player) {
+                    throw new Error('Corrupted save data - missing player data');
+                }
+
+                // Show confirmation dialog
+                const confirmMessage = `Import save from ${new Date(parsed.timestamp).toLocaleString()}?\n` +
+                                     `Floor: ${parsed.gameState.player.floor} | Gold: ${parsed.gameState.player.gold}\n` +
+                                     `This will overwrite your current progress!`;
+                
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                // Clear UI state
+                document.getElementById('deathScreen').style.display = 'none';
+                document.getElementById('victoryScreen').style.display = 'none';
+                document.getElementById('comboPreview').style.opacity = '0';
+
+                // Import the data by replacing current state
+                gameState.player = { ...parsed.gameState.player };
+                gameState.currentEnemy = parsed.gameState.currentEnemy ? { ...parsed.gameState.currentEnemy } : null;
+                gameState.selectedDice = [];
+                gameState.dice = parsed.gameState.dice.map(d => ({ ...d }));
+                gameState.inCombat = parsed.gameState.inCombat;
+                gameState.bossState = { ...parsed.gameState.bossState };
+                gameState.gameVersion = parsed.gameState.gameVersion || '1.2';
+                
+                validateGameState();
+                
+                hideExportImport();
+                
+                // Complete UI refresh
+                updateUI();
+                renderDiceSelection();
+                renderDiceInventory();
+                renderSkills();
+                generateShopInventory();
+                renderFusionRecipes();
+                renderUpgradeOptions();
+                
+                // Auto-save the imported game
+                saveGame();
+                
+                showSaveStatus('📥 Save imported successfully!');
+                addCombatLog(`📥 Imported save from ${new Date(parsed.timestamp).toLocaleString()}`, 'log-save');
+                
+            } catch (error) {
+                console.error('Import failed:', error);
+                showSaveStatus('❌ Import failed: ' + error.message);
+            }
+        }
+
+        function loadSaveFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('importData').value = e.target.result;
+                showSaveStatus('📁 File loaded - click Import Save to apply');
+            };
+            reader.onerror = function() {
+                showSaveStatus('❌ Failed to read file!');
+            };
+            reader.readAsText(file);
+            
+            // Clear the input for next use
+            fileInput.value = '';
+        }
+
+        function newGame() {
+            if (confirm('Start a new game? This will reset your current progress.')) {
+                // Reset to default state
+                gameState.player = {
+                    health: 100,
+                    maxHealth: 100,
+                    stamina: 15,
+                    maxStamina: 15,
+                    experience: 0,
+                    expNeeded: 50,
+                    floor: 1,
+                    gold: 50,
+                    weapon: { name: 'Bare Hands', bonus: 0 },
+                    armor: null,
+                    healthPotions: 2,
+                    staminaPotions: 1,
+                    skillPoints: 2,
+                    skills: {
+                        vitality: 0,
+                        endurance: 0,
+                        regeneration: 0,
+                        recovery: 0,
+                        naturalArmor: 0,
+                        combatProwess: 0,
+                        diceEfficiency: 0,
+                        fortune: 0
+                    }
+                };
+                gameState.currentEnemy = null;
+                gameState.selectedDice = [];
+                gameState.dice = [
+                    { type: 'd6', rarity: 'common', count: 3 },
+                    { type: 'd4', rarity: 'common', count: 2 },
+                    { type: 'd8', rarity: 'rare', count: 1 }
+                ];
+                gameState.inCombat = true;
+                gameState.bossState = { enraged: false, turnCounter: 0 };
+
+                // Clear screens
+                document.getElementById('deathScreen').style.display = 'none';
+                document.getElementById('victoryScreen').style.display = 'none';
+                document.getElementById('comboPreview').style.opacity = '0';
+                
+                // Clear combat log
+                document.getElementById('combatLog').innerHTML = 
+                    '<div class="log-entry log-info">Welcome to the Rogue Dice Dungeon! Select dice and attack to begin.</div>';
+                
+                spawnEnemy();
+                updateUI();
+                renderDiceSelection();
+                renderDiceInventory();
+                renderSkills();
+                generateShopInventory();
+                renderFusionRecipes();
+                renderUpgradeOptions();
+                
+                addCombatLog('🆕 New adventure begins!', 'log-heal');
+            }
+        }
+
+        // Auto-save functionality
+        function autoSave() {
+            if (gameState.player.health > 0) {
+                saveGame();
+            }
+        }
+
+        // Make functions globally accessible
+        window.upgradeSkill = upgradeSkill;
+        window.switchTab = switchTab;
+        window.saveGame = saveGame;
+        window.showLoadGame = showLoadGame;
+        window.hideLoadGame = hideLoadGame;
+        window.showExportImport = showExportImport;
+        window.hideExportImport = hideExportImport;
+        window.generateExportData = generateExportData;
+        window.copyExportData = copyExportData;
+        window.downloadSave = downloadSave;
+        window.importSave = importSave;
+        window.loadSaveFile = loadSaveFile;
+        window.deleteSave = deleteSave;
+        window.newGame = newGame;
+        window.attack = attack;
+        window.rest = rest;
+        window.useHealthPotion = useHealthPotion;
+        window.useStaminaPotion = useStaminaPotion;
+
+        // Initialize game when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
